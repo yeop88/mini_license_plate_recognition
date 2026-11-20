@@ -18,7 +18,7 @@ plate_models (Model) — 번호판 감지기·글자 인식기를 등록하는 �
           같은 폴더에 <이름>_1280.engine (TensorRT FP16, export_trt.py 로 만듦) 이 있으면 GPU 에서 그것을 씀
           (1080p: v1s 8.7 → 5.8 ms, v1l 18.9 → 8.1 ms. 엔진은 1280x1280 정사각 입력이라 PyTorch(1280x736)와
            박스가 조금 다름, 감지 수는 비슷 — 2026-11-20 합성 240장 v1s 144 → 155/251, v1l 148 → 144/251, conf 0.1)
-          지금 있는 것: license-plate-finetune-v1s.pt = YOLO-v1s (기본), license-plate-finetune-v1l.pt = YOLO-v1l
+          지금 있는 것: license-plate-finetune-v1s.pt = YOLO-v1s, license-plate-finetune-v1l.pt = YOLO-v1l (기본)
           (Hugging Face morsetechlab/yolov11-license-plate-detection, AGPL-3.0, 여러 나라 번호판으로 학습)
     글자: EasyOCR 한글+영어 (가중치 %USERPROFILE%\\.EasyOCR\\model 의 korean_g2.pth, craft_mlt_25k.pth)
           EOCR_KR  = 번호판 글자만 허용 + 한국 번호판 형식에 맞을 때만 읽은 것으로 침 (기본)
@@ -68,7 +68,8 @@ LOW_CONF = 0.1            # 이미 추적 중인 번호판을 이어 갈 때만 
 # 감지 입력 크기. 1920x1080 을 640 으로 줄이면 번호판이 너무 작아져 한국 번호판을 거의 못 찾음
 # (2026-11-20 합성 시험: 12종 x 4조건 감지 640 → 8/48, 1280 → 34/48 (v1s), 정면 3 m → 6 m, 시간 8.4 → 10.9 ms)
 YOLO_IMGSZ = 1280
-DEFAULT_DETECTOR = "YOLO-v1s"   # 기본 감지기 (v1l 등 다른 크기는 인식 설정 창에서 고름)
+# 기본 감지기 (2026-11-20 v1s → v1l: 먼 번호판을 더 잘 찾고 TensorRT 로 약 8 ms. 파일이 없으면 목록의 첫 감지기)
+DEFAULT_DETECTOR = "YOLO-v1l"
 
 
 def engine_path(path, imgsz=YOLO_IMGSZ):

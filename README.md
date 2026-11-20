@@ -15,7 +15,7 @@ run.bat                                    :: 콘솔 창 없이 실행 (지난�
 pythonw main.py --camera 1 --size 640x480  :: 카메라 번호·해상도 지정
 pythonw main.py --mode max_fps             :: 최고 프레임 (max_quality = 최고 화질, request = 기본 1920x1080)
 pythonw main.py --video D:\영상\road.mp4    :: 영상 파일로 시작 (감지기가 있으면 바로 재생)
-pythonw main.py --detector YOLO-v1s --reader EOCR_RAW   :: 모델 키 (기본: YOLO-v1s + EOCR_KR)
+pythonw main.py --detector YOLO-v1s --reader EOCR_RAW   :: 모델 키 (기본: YOLO-v1l + EOCR_KR)
 ```
 
 ## 화면
@@ -113,15 +113,15 @@ pythonw main.py --detector YOLO-v1s --reader EOCR_RAW   :: 모델 키 (기본: Y
 
 | 키 | 종류 | 내용 |
 | --- | --- | --- |
-| `YOLO-v1s` (기본) | 번호판 감지 | YOLO11s 번호판 감지 `models\plate_yolo\license-plate-finetune-v1s.pt` (19 MB). conf 0.25, **입력 1280**, GPU 에서 TensorRT FP16 엔진이 있으면 그것을 씀 (없으면 PyTorch fp16). 1080p 감지 TensorRT 약 6 ms (PyTorch 약 9 ms) |
-| `YOLO-v1l` | 번호판 감지 | 같은 저장소의 큰 모델 `license-plate-finetune-v1l.pt` (51 MB). 먼 번호판을 더 잘 찾음 (5·8 m 정면 12종 감지 15/24, v1s 12/24), TensorRT 약 8 ms (PyTorch 약 11~19 ms). 인식 설정 창에서 고름 |
+| `YOLO-v1s` | 번호판 감지 | YOLO11s 번호판 감지 `models\plate_yolo\license-plate-finetune-v1s.pt` (19 MB). conf 0.25, **입력 1280**, GPU 에서 TensorRT FP16 엔진이 있으면 그것을 씀 (없으면 PyTorch fp16). 1080p 감지 TensorRT 약 6 ms (PyTorch 약 9 ms) |
+| `YOLO-v1l` (기본) | 번호판 감지 | 같은 저장소의 큰 모델 `license-plate-finetune-v1l.pt` (51 MB). 2026-11-20 기본으로 바꿈 (TensorRT 로 v1s PyTorch 보다 빠름). 엔진이 없으면 PyTorch 로 약 11~19 ms 라 `python export_trt.py` 를 먼저 실행하는 것을 권장. 먼 번호판을 더 잘 찾음 (5·8 m 정면 12종 감지 15/24, v1s 12/24), TensorRT 약 8 ms (PyTorch 약 11~19 ms). 인식 설정 창에서 고름 |
 | `EOCR_KR` (기본) | 글자 인식 | EasyOCR 한글+영어. 번호판 글자만 허용, **한국 번호판 형식**(`12가3456`, `123가4567`, `서울12가3456`, 외교 `외교001001`, 구형 이륜차 `서울강남가1234`)에 맞을 때만 읽은 것으로 침. 지역명이 한 글자만 틀리면 고침(`서문12…` → `서울12…`) → 틀린 읽기가 다수결에 덜 섞임. 두 줄 번호판은 위 줄부터 이어 붙임 |
 | `EOCR_RAW` | 글자 인식 | EasyOCR 결과 그대로 (형식 검사 없음, 다른 나라 번호판·시험용) |
 
-- **YOLO 가중치 출처**: Hugging Face [morsetechlab/yolov11-license-plate-detection](https://huggingface.co/morsetechlab/yolov11-license-plate-detection) (다운로드 약 8만 회, **AGPL-3.0**). 여러 나라 번호판(Roboflow 데이터셋)으로 학습된 모델이라 한국 번호판 전용은 아닙니다. 크기 n/s/m/l/x 가 있고, 받은 것은 s.
+- **YOLO 가중치 출처**: Hugging Face [morsetechlab/yolov11-license-plate-detection](https://huggingface.co/morsetechlab/yolov11-license-plate-detection) (다운로드 약 8만 회, **AGPL-3.0**). 여러 나라 번호판(Roboflow 데이터셋)으로 학습된 모델이라 한국 번호판 전용은 아닙니다. 크기 n/s/m/l/x 가 있고, 받은 것은 s 와 l (기본 l).
   - 받을 때 확인한 것 (2026-11-20): SHA256 이 Hugging Face 값과 같음 (`95e50c25…2381`). `.pt` 는 불러올 때 코드가 실행될 수 있는 형식이라 불러오기 전에 안을 검사함 → `ultralytics`·`torch` 모델 클래스와 `collections`, `set` 만 있고 위험한 호출 없음. (Hugging Face 는 ultralytics `.pt` 전부에 '주의' 표시를 붙임)
   - 다른 크기를 쓰려면 같은 저장소의 `license-plate-finetune-v1?.pt` 를 `models\plate_yolo\` 에 넣으면 목록에 `YOLO-v1n`, `YOLO-v1m` … 으로 자동 추가됩니다.
-  - 다시 받기: `python -c "from huggingface_hub import hf_hub_download as d; d('morsetechlab/yolov11-license-plate-detection','license-plate-finetune-v1s.pt',local_dir='models/plate_yolo')"`
+  - 다시 받기: `python -c "from huggingface_hub import hf_hub_download as d; [d('morsetechlab/yolov11-license-plate-detection',f'license-plate-finetune-{k}.pt',local_dir='models/plate_yolo') for k in ('v1l','v1s')]"` → 이어서 `python export_trt.py`
 - **TensorRT**: `python export_trt.py` 로 `models\plate_yolo\<이름>_1280.engine` (FP16) 을 만들면 앱이 다음 실행부터 자동으로 씁니다 (로그에 `TensorRT FP16` 표시, 없으면 `PyTorch FP16`). 모델마다 2~4 분 걸리고, 엔진은 만든 GPU·TensorRT 버전(10.16)에서만 동작합니다 — 다른 PC·드라이버 업데이트 뒤에는 `--rebuild`. 엔진은 1280x1280 정사각 입력이라 PyTorch(1280x736 직사각)와 박스가 조금 다르지만, PyTorch 를 정사각으로 돌리면 결과가 같고 감지 수도 비슷합니다 (아래 시험 기록). 글자 인식(EasyOCR)은 모델 두 개 + 입력 크기가 바뀌어 TensorRT 로 바꾸지 않았습니다.
 - ultralytics 가 없는 패키지를 스스로 설치하지 않게 `YOLO_AUTOINSTALL=False` 로 둡니다 (`plate_models.py`).
 - **EasyOCR 가중치**: 처음 쓸 때 `%USERPROFILE%\.EasyOCR\model\` 에 자동으로 받습니다 (`korean_g2.pth`, `craft_mlt_25k.pth`, 이 PC 에는 이미 있음).
@@ -218,10 +218,10 @@ mini_license_plate_recognition\
 | 감지 설정 | 한국 번호판 12종 x 4조건 감지 | 인식(형식 검사) | 감지 시간 |
 | --- | --- | --- | --- |
 | v1s 입력 640 (처음 앱) | 8/48 | 5/48 | 8.4 ms |
-| **v1s 입력 1280 (지금 기본)** | 34/48 | 22/48 → 형식 확장 후 25/48 | 10.9 ms |
+| **v1s 입력 1280 (11-20 TensorRT 전까지 기본)** | 34/48 | 22/48 → 형식 확장 후 25/48 | 10.9 ms |
 | v1n 입력 1280 | 38/48 | 28/48 | 9.7 ms |
 | v1m 입력 1280 | 29/48 | 20/48 | — |
-| **v1l 입력 1280 (앱에서 고를 수 있음)** | 40/48 | 27/48 | 15.7 ms |
+| **v1l 입력 1280 (지금 기본)** | 40/48 | 27/48 | 15.7 ms |
 
 거리·각도 한계 (fx 1536 기준, 4개 번호판 중 감지+정확히 읽은 비율이 75% 이상인 범위)
 

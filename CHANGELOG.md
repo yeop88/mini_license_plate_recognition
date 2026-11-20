@@ -26,6 +26,7 @@
 - 종합 시험 도구 `plate_stress_test.py`: 번호판 12종 x 움직임 8가지 x 조명·모션블러·초점 흐림·잡음·JPEG, 설정별 비교.
 
 ### Changed
+- **기본 감지기 `YOLO-v1s` → `YOLO-v1l`**: 먼 번호판을 더 잘 찾고 (5·8 m 정면 12종 감지 12 → 15/24), TensorRT FP16 으로 1080p 감지 약 8 ms. 시험 도구(`plate_stress_test.py` 등)의 기본 감지기도 따라 바뀜.
 - ultralytics 자동 패키지 설치 끔 (`YOLO_AUTOINSTALL=False`): 엔진을 만들 때 onnxruntime-gpu 를 스스로 설치하려 해서 막음.
 - 글자 인식 전 대비 보정(CLAHE)·선명화 기본값을 켬으로 바꿈: 종합 시험(`plate_stress_test.py`)에서 맞게 고정 33 → 40/108, 틀린 고정 5 → 3, 처리 시간 차이는 거의 없음.
 - 번호 고정을 **글자 자리별 다수결**로 바꿈: 같은 모양(길이·한글 위치)의 읽기끼리 묶고 자리마다 가장 많은 글자 → 매번 다른 자리 한 글자씩 틀려도 맞는 번호로 고정 (`tracker.vote_text`).
