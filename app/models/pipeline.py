@@ -2,8 +2,9 @@
 """
 pipeline (Model) — 입력(카메라 또는 영상 파일) + 번호판 감지 + 추적 + 글자 인식 작업 스레드
 
-    프레임 → 번호판 감지 → 추적(tracker, 화면 ID) → 읽는 중인 번호판만 잘라서 글자 인식
-           → lock_frames 번 읽으면 다수결로 글자 고정 → 결과 이미지
+    프레임 → 번호판 감지 → 추적(tracker, 화면 ID) → 감지가 끊긴 번호판은 영상으로 따라감
+           → 읽는 중인 번호판만 잘라서 선명도 확인(흐리면 건너뜀) → (보정) → 글자 인식
+           → lock_frames 번 읽으면 자리별 다수결로 글자 고정 → 결과 이미지
     GUI 와는 queue 로만 주고받음 (ViewModel 이 tick() 에서 꺼내 씀)
 
 입력
@@ -19,6 +20,7 @@ pipeline (Model) — 입력(카메라 또는 영상 파일) + 번호판 감지 +
 보내는 메시지 (out queue): ("log", 글) / ("ready", (감지기 키, 글자 인식 키)) / ("frame", dict) / ("preview", 이미지)
                            / ("capdir", 폴더) / ("end", None)
 """
+import inspect
 import os
 import queue
 import threading
@@ -27,6 +29,7 @@ import time
 import cv2
 
 from app import paths
+from app.models import plate_enhance as PE
 from app.models import plate_models as PM
 from app.models import tracker as TR
 from app.models.frame_saver import CAPTURE_KINDS, FrameSaver, capture_name
@@ -68,6 +71,13 @@ class RecognitionPipeline(threading.Thread):
         # 설정 (ViewModel 이 바꿈)
         self.playing, self.realtime, self.show_entering = False, True, False
         self.entry_margin, self.lock_frames = TR.ENTRY_MARGIN, TR.LOCK_FRAMES
+        self.sharp_select = True           # 흐린 프레임 건너뛰기 + 선명도 가중 다수결
+        self.enhance_contrast = False      # 글자 인식 전 대비 보정 (CLAHE)
+        self.enhance_sharpen = False       # 글자 인식 전 선명화 (언샤프 마스크)
+        self.hold_track = True             # 고정 후 오래 기다림 + 감지가 끊기면 영상으로 따라가기
+        self.low_conf = True               # 추적 중인 번호판은 낮은 신뢰도 감지로도 이어 감
+        self.reid = True                   # 끊긴 뒤 같은 번호가 읽히면 이전 화면 ID·고정값 되살림
+        self._det_has_conf = False         # 감지기가 detect(frame, conf=...) 를 받는지
         self.capture_on = False            # [결과 캡처] 체크 상태
         self.capture_dir = None            # 지금 저장 중인 폴더 (시작할 때 만들어짐)
         self.capture_kind = CAPTURE_KINDS[0]
@@ -113,6 +123,10 @@ class RecognitionPipeline(threading.Thread):
                 self.log(f"번호판 감지기 {PM.describe(PM.DETECTORS, dk)} 불러오는 중...")
                 self.detect = PM.DETECTORS[dk]["build"](self.device)
             self.det_key = dk
+            try:
+                self._det_has_conf = self.detect is not None and "conf" in inspect.signature(self.detect).parameters
+            except (TypeError, ValueError):
+                self._det_has_conf = False
         if rk != self.read_key:
             self.read = None
             if rk:
@@ -134,25 +148,55 @@ class RecognitionPipeline(threading.Thread):
             self.new_tracker(keep_numbering=True)
 
     # ---------------- 프레임 처리 ----------------
+    def _detect(self, frame):
+        """감지. '낮은 감지로 추적 잇기' 가 켜져 있고 감지기가 conf 인자를 받으면 낮은 기준으로 감지"""
+        if self.low_conf and self._det_has_conf:
+            return self.detect(frame, conf=PM.LOW_CONF)
+        return self.detect(frame)
+
     def process(self, frame, fi, save):
         t = time.perf_counter()
-        xyxy, conf = self.detect(frame)
+        xyxy, conf = self._detect(frame)
         det = (time.perf_counter() - t) * 1000
         s = self.stats
         s["frames"] += 1
-        s["detections"] += len(conf)
+        s["detections"] += sum(1 for c in conf if c >= PM.YOLO_CONF)
         tk_ = self.tracker
         tk_.entry_margin, tk_.lock_frames = self.entry_margin, self.lock_frames
-        pairs = tk_.update(xyxy, fi)
+        tk_.hold, tk_.reid = self.hold_track, self.reid
+        if self.low_conf and self._det_has_conf:
+            pairs = tk_.update(xyxy, fi, conf=conf, high=PM.YOLO_CONF)
+        else:
+            pairs = tk_.update(xyxy, fi)
+        # 감지가 끊긴 번호판은 직전 번호판 영상으로 따라감 (고정 후 추적 유지)
+        t = time.perf_counter()
+        bridged = []
+        if self.hold_track:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            bridged = tk_.bridge(gray)
+            tk_.remember(gray, pairs)
+        hold_ms = (time.perf_counter() - t) * 1000
         # 읽는 중인 번호판만 글자 인식 (고정된 번호판은 다시 읽지 않음)
         meas = [(tr, di) for tr, di in pairs if tr.state == "measuring"]
         t = time.perf_counter()
         if meas and self.read is not None:
             crops = [PM.crop_plate(frame, xyxy[di]) for _, di in meas]
-            for (tr, di), (text, c) in zip(meas, self.read(crops)):
-                tr.last = text
-                if tk_.add_prediction(tr, text, c, fi):
-                    self._on_lock(tr)
+            sharps = [PE.sharpness(c) for c in crops] if self.sharp_select else [None] * len(crops)
+            todo = []
+            for (tr, di), crop, sh in zip(meas, crops, sharps):
+                if sh is not None:
+                    tr.best_sharp = max(tr.best_sharp, sh)
+                    if sh < tr.best_sharp * PE.SKIP_RATIO:      # 이 번호판이 가장 선명했을 때보다 많이 흐리면 읽지 않음
+                        tr.last = "(흐림)"
+                        continue
+                if self.enhance_contrast or self.enhance_sharpen:
+                    crop = PE.enhance(crop, self.enhance_contrast, self.enhance_sharpen)
+                todo.append((tr, crop, sh))
+            if todo:
+                for (tr, _, sh), (text, c) in zip(todo, self.read([c for _, c, _ in todo])):
+                    tr.last = text
+                    if tk_.add_prediction(tr, text, c, fi, sharp=sh) == "lock":
+                        self._on_lock(tr)
         read = (time.perf_counter() - t) * 1000
         # 다 읽기 전에 화면 가장자리에 닿으면(나가는 중) 모은 만큼으로 고정
         for tr, di in pairs:
@@ -160,12 +204,13 @@ class RecognitionPipeline(threading.Thread):
                 tr.lock(fi, "가장자리")
                 self._on_lock(tr)
         rows = []
-        for tr, di in sorted(pairs, key=lambda p: (p[0].box[1], p[0].box[0])):
-            rows.append({"id": tr.id, "no": tr.no, "state": tr.state, "box": xyxy[di], "det_conf": float(conf[di]),
+        shown = [(tr, tr.box, float(conf[di])) for tr, di in pairs] + [(tr, tr.box, 0.0) for tr in bridged]
+        for tr, box, dc in sorted(shown, key=lambda p: (p[1][1], p[1][0])):
+            rows.append({"id": tr.id, "no": tr.no, "state": tr.state, "box": box, "det_conf": dc,
                          "n": len(tr.preds), "need": tk_.lock_frames, "last": getattr(tr, "last", ""),
                          "text": tr.text, "ratio": tr.ratio, "conf": tr.conf, "lock_frame": tr.lock_frame,
-                         "reason": tr.lock_reason})
-        total = det + read
+                         "reason": tr.lock_reason, "bridged": tr in bridged})
+        total = det + read + hold_ms
         cam = self.mode == "camera"
         hud = f"{self.det_key}+{self.read_key or '-'}  {total:.0f} ms ({1000 / max(total, 1e-3):.0f} fps)  " + \
               (f"recog #{fi}" if cam else f"frame {fi}")

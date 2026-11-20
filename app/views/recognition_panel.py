@@ -94,6 +94,21 @@ class RecognitionPanel(SidePanel):
         spin("entry_margin", "가장자리 여백 px", 2, 0, 0, 300)
         spin("lock_frames", "글자 고정까지 읽기", 2, 2, 1, 30)
 
+        # ---- 화질·추적 유지 ----
+        f = ttk.LabelFrame(body, text="화질·추적 유지", padding=6)
+        f.pack(fill="x", pady=(0, 6))
+        for r, (name, text) in enumerate((
+                ("sharp_select", "흐린 프레임 건너뛰기 + 선명도 가중 다수결 (약 0.2 ms)"),
+                ("enhance_contrast", "글자 인식 전 대비 보정 (CLAHE, 어둡거나 역광일 때)"),
+                ("enhance_sharpen", "글자 인식 전 선명화 (약하게, 합성 시험에서는 효과 없음)"),
+                ("hold_track", "고정 후 추적 유지: 감지가 끊겨도 기다림 + 번호판 영상으로 따라가기"),
+                ("low_conf", "추적 중인 번호판은 낮은 신뢰도 감지로도 이어 가기"),
+                ("reid", "끊긴 뒤 같은 번호가 다시 읽히면 이전 ID·고정값 되살리기"))):
+            v = tk.BooleanVar(value=vm.options[name])
+            self.opt_vars[name] = v
+            ttk.Checkbutton(f, text=text, variable=v,
+                            command=lambda n=name, v=v: vm.set_option(n, v.get())).grid(row=r, column=0, sticky="w")
+
         # ---- 결과 캡처 ----
         f = ttk.LabelFrame(body, text="결과 프레임 캡처", padding=6)
         f.pack(fill="x", pady=(0, 6))

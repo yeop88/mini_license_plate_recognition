@@ -64,7 +64,10 @@ class RecognitionViewModel:
         self.log = Event()                         # 메시지 (아래 메시지 상자)
         self.ended = Event()
         self.options = {"realtime": True, "show_entering": False,
-                        "entry_margin": TR.ENTRY_MARGIN, "lock_frames": TR.LOCK_FRAMES}
+                        "entry_margin": TR.ENTRY_MARGIN, "lock_frames": TR.LOCK_FRAMES,
+                        # 화질·추적 유지 (pipeline 의 같은 이름 속성으로 넘어감)
+                        "sharp_select": True, "enhance_contrast": False, "enhance_sharpen": False,
+                        "hold_track": True, "low_conf": True, "reid": True}
         self.last_image_time = 0.0                 # 마지막 결과 이미지를 받은 시각 (View 가 카메라 화면과 고를 때 씀)
         self._loading = False
         self._auto_play = auto_play

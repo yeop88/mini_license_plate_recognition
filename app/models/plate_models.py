@@ -7,6 +7,7 @@ plate_models (Model) — 번호판 감지기·글자 인식기를 등록하는 �
 감지기 (DETECTORS)
     키: {"name": 표시 이름, "build": build(device) → detect}
     detect(frame_bgr) → (xyxy, conf)      xyxy: (N, 4) float 원본 좌표 [x1, y1, x2, y2], conf: (N,) float
+    detect(frame_bgr, conf=0.1)           (선택) 신뢰도 기준을 낮춰 감지 — 있으면 "낮은 감지로 추적 잇기" 를 씀
 
 글자 인식 (READERS)
     키: {"name": 표시 이름, "build": build(device) → read}
@@ -57,6 +58,7 @@ def describe(registry, key):
 # =====================================================================
 YOLO_DIR = os.path.join(MODELS_DIR, "plate_yolo")
 YOLO_CONF = 0.25          # 감지 신뢰도 기준
+LOW_CONF = 0.1            # 이미 추적 중인 번호판을 이어 갈 때만 쓰는 낮은 기준 (새 번호판은 YOLO_CONF 이상만)
 # 감지 입력 크기. 1920x1080 을 640 으로 줄이면 번호판이 너무 작아져 한국 번호판을 거의 못 찾음
 # (2026-11-20 합성 시험: 12종 x 4조건 감지 640 → 8/48, 1280 → 34/48 (v1s), 정면 3 m → 6 m, 시간 8.4 → 10.9 ms)
 YOLO_IMGSZ = 1280
@@ -70,8 +72,8 @@ def _yolo_builder(path):
         dev = 0 if str(device).startswith("cuda") else "cpu"
         precision = "fp16" if dev == 0 else "fp32"     # ultralytics 8.4: half 대신 quantize
 
-        def detect(frame):
-            r = model.predict(frame, conf=YOLO_CONF, imgsz=YOLO_IMGSZ, device=dev, quantize=precision, verbose=False)[0]
+        def detect(frame, conf=None):
+            r = model.predict(frame, conf=YOLO_CONF if conf is None else conf, imgsz=YOLO_IMGSZ, device=dev, quantize=precision, verbose=False)[0]
             b = r.boxes
             return b.xyxy.cpu().numpy().astype(float), b.conf.cpu().numpy().astype(float)
         return detect
