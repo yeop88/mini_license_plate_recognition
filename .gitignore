@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# 실행 중 생기는 파일
+/captures/
+
+# 큰 파일 (모델 가중치, 영상)
+/models/
+/videos/
+*.pt
+*.pth
+*.onnx
+*.engine
+*.mp4
+*.avi
+*.mkv
+*.mov
+
+# 로컬 보관
+/backup/
+
+# 편집기
+.vscode/

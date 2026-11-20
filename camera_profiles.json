@@ -1,0 +1,240 @@
+{
+  "last_camera": "Global Shutter Camera",
+  "cameras": {
+    "Global Shutter Camera": {
+      "measured_at": "2026-11-13T11:09:58",
+      "model": "ELP-U3GS05B10C-IB8 (5.0MP USB)",
+      "color": true,
+      "advertised": [
+        {
+          "fourcc": "MJPG",
+          "width": 2592,
+          "height": 1944,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "MJPG",
+          "width": 2560,
+          "height": 1440,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "MJPG",
+          "width": 2048,
+          "height": 1536,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "MJPG",
+          "width": 1600,
+          "height": 1200,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "MJPG",
+          "width": 1920,
+          "height": 1080,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "MJPG",
+          "width": 1280,
+          "height": 960,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "MJPG",
+          "width": 1280,
+          "height": 720,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "MJPG",
+          "width": 640,
+          "height": 480,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "MJPG",
+          "width": 512,
+          "height": 512,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "YUY2",
+          "width": 2592,
+          "height": 1944,
+          "max_fps": 35.0
+        },
+        {
+          "fourcc": "YUY2",
+          "width": 2560,
+          "height": 1440,
+          "max_fps": 35.0
+        },
+        {
+          "fourcc": "YUY2",
+          "width": 2048,
+          "height": 1536,
+          "max_fps": 50.0
+        },
+        {
+          "fourcc": "YUY2",
+          "width": 1600,
+          "height": 1200,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "YUY2",
+          "width": 1920,
+          "height": 1080,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "YUY2",
+          "width": 1280,
+          "height": 960,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "YUY2",
+          "width": 1280,
+          "height": 720,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "YUY2",
+          "width": 640,
+          "height": 480,
+          "max_fps": 60.0
+        },
+        {
+          "fourcc": "YUY2",
+          "width": 512,
+          "height": 512,
+          "max_fps": 60.0
+        }
+      ],
+      "modes": [
+        {
+          "request": "MJPG 2592x1944",
+          "request_fourcc": "MJPG",
+          "ok": true,
+          "width": 2592,
+          "height": 1944,
+          "fourcc": "MJPG",
+          "fps": 39.3
+        },
+        {
+          "request": "YUY2 2592x1944",
+          "request_fourcc": "YUY2",
+          "ok": true,
+          "width": 2592,
+          "height": 1944,
+          "fourcc": "YUY2",
+          "fps": 34.7
+        },
+        {
+          "request": "MJPG 2560x1440",
+          "request_fourcc": "MJPG",
+          "ok": true,
+          "width": 2560,
+          "height": 1440,
+          "fourcc": "MJPG",
+          "fps": 54.4
+        },
+        {
+          "request": "YUY2 2560x1440",
+          "request_fourcc": "YUY2",
+          "ok": true,
+          "width": 2560,
+          "height": 1440,
+          "fourcc": "YUY2",
+          "fps": 35.2
+        },
+        {
+          "request": "MJPG 2048x1536",
+          "request_fourcc": "MJPG",
+          "ok": true,
+          "width": 2048,
+          "height": 1536,
+          "fourcc": "MJPG",
+          "fps": 60.7
+        },
+        {
+          "request": "YUY2 2048x1536",
+          "request_fourcc": "YUY2",
+          "ok": true,
+          "width": 2048,
+          "height": 1536,
+          "fourcc": "YUY2",
+          "fps": 49.7
+        },
+        {
+          "request": "MJPG 1280x720",
+          "request_fourcc": "MJPG",
+          "ok": true,
+          "width": 1280,
+          "height": 720,
+          "fourcc": "MJPG",
+          "fps": 59.5
+        },
+        {
+          "request": "YUY2 1280x720",
+          "request_fourcc": "YUY2",
+          "ok": true,
+          "width": 1280,
+          "height": 720,
+          "fourcc": "YUY2",
+          "fps": 59.6
+        },
+        {
+          "request": "MJPG 1920x1080",
+          "request_fourcc": "MJPG",
+          "ok": true,
+          "width": 1920,
+          "height": 1080,
+          "fourcc": "MJPG",
+          "fps": 60.6,
+          "source": "사용 중 측정"
+        }
+      ],
+      "best": {
+        "max_quality": {
+          "request": "MJPG 2592x1944",
+          "request_fourcc": "MJPG",
+          "ok": true,
+          "width": 2592,
+          "height": 1944,
+          "fourcc": "MJPG",
+          "fps": 39.3
+        },
+        "max_fps": {
+          "request": "MJPG 2048x1536",
+          "request_fourcc": "MJPG",
+          "ok": true,
+          "width": 2048,
+          "height": 1536,
+          "fourcc": "MJPG",
+          "fps": 60.7
+        },
+        "request": {
+          "request": "YUY2 1280x720",
+          "request_fourcc": "YUY2",
+          "ok": true,
+          "width": 1280,
+          "height": 720,
+          "fourcc": "YUY2",
+          "fps": 59.6
+        },
+        "request_size": [
+          1280,
+          720
+        ]
+      },
+      "last_used": "2026-11-20T10:44:16",
+      "last_resolution": "1920x1080",
+      "calibration_file": "calibration_Global_Shutter_Camera.json"
+    }
+  }
+}
