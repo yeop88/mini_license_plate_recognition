@@ -7,7 +7,7 @@ tracker (Model) — 번호판 추적 + 화면 ID + 글자 값 고정 (학습 불
     중복  : 큰 감지 박스 안에 CONTAIN_RATIO 이상 들어간 작은 감지 박스는 같은 번호판의 중복으로 보고 뺌
     상태  : entering (화면 가장자리에 걸려 일부만 보임, 읽지 않음)
             → measuring (다 보임, 화면 ID 를 붙이고 글자를 읽어 모음)
-            → locked (읽은 글자가 lock_frames 개 모이면 다수결로 고정, 사라질 때까지 그대로)
+            → locked (읽은 글자가 lock_frames 개 모이면 글자 자리별 다수결로 고정, 사라질 때까지 그대로)
     끝    : 감지가 max_missed 프레임 넘게 끊기거나 박스가 화면 밖으로 나가면 추적 종료
 """
 import collections
@@ -28,6 +28,41 @@ def iou(a, b):
     return inter / u if u > 0 else 0.0
 
 
+def text_shape(text):
+    """글자 모양: 숫자 → 0, 한글 → 가, 그 밖은 그대로.  '12가3456' → '00가0000'"""
+    return "".join("0" if ch.isdigit() else "가" if "가" <= ch <= "힣" else ch for ch in text)
+
+
+def vote_text(preds):
+    """읽은 글자들 [(글자, 신뢰도)] → (고정 글자, 일치율, 평균 신뢰도)
+
+    1) 모양(text_shape)이 같은 읽기끼리 묶고, 가장 많은 묶음을 고름 (같으면 신뢰도 합이 큰 쪽)
+       → 길이나 한글 위치가 다른 읽기는 섞지 않음 (예: 12가3456 과 123가4567)
+    2) 그 묶음 안에서 글자 자리마다 가장 많이 나온 글자 (같으면 신뢰도 합이 큰 쪽)
+       → 매번 다른 자리 한 글자씩 틀려도 맞는 번호를 만들 수 있음
+          예: 12가3456, 12가3458, 17가3456 → 12가3456 (통째 다수결이면 셋이 모두 1표)
+    일치율 = 모든 읽기에 대해 자리별로 고정 글자와 같은 비율의 평균 (모양이 다른 읽기는 0)
+    """
+    if not preds:
+        return None, None, None
+    groups = collections.defaultdict(list)
+    for t, c in preds:
+        groups[text_shape(t)].append((t, c))
+    group = max(groups.values(), key=lambda g: (len(g), sum(c for _, c in g)))
+    chars = []
+    for i in range(len(group[0][0])):
+        count = collections.Counter(t[i] for t, _ in group)
+        score = collections.defaultdict(float)
+        for t, c in group:
+            score[t[i]] += c
+        chars.append(max(count, key=lambda ch: (count[ch], score[ch])))
+    text = "".join(chars)
+    n = max(len(text), 1)
+    ratio = sum(sum(a == b for a, b in zip(t, text)) / n for t, _ in group) / len(preds)
+    conf = sum(c for _, c in group) / len(group)
+    return text, ratio, conf
+
+
 class Track:
     _next = 1
 
@@ -46,14 +81,8 @@ class Track:
         self.lock_frame = None
 
     def lock(self, fi, reason="다수결"):
-        """모은 글자로 고정: 가장 많이 나온 글자 (같으면 신뢰도 합이 큰 쪽)"""
-        count = collections.Counter(t for t, _ in self.preds)
-        score = collections.defaultdict(float)
-        for t, c in self.preds:
-            score[t] += c
-        self.text = max(count, key=lambda t: (count[t], score[t]))
-        self.ratio = count[self.text] / len(self.preds)
-        self.conf = score[self.text] / count[self.text]
+        """모은 글자로 고정 (vote_text: 글자 자리마다 다수결)"""
+        self.text, self.ratio, self.conf = vote_text(self.preds)
         self.state = "locked"
         self.lock_frame = fi
         self.lock_reason = reason

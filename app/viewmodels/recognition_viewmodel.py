@@ -47,7 +47,8 @@ class RecognitionViewModel:
         self.video_path = Observable(video or paths.default_video())
         self.total = Observable(0)                 # 영상 프레임 수
         self.video_fps = 30.0
-        self.det_key = Observable(det or _first(PM.DETECTORS))
+        default_det = PM.DEFAULT_DETECTOR if PM.DEFAULT_DETECTOR in PM.DETECTORS else _first(PM.DETECTORS)
+        self.det_key = Observable(det or default_det)
         self.read_key = Observable(reader or _first(PM.READERS))
         self.ready = Observable(False)             # 감지기 준비됨
         self.image = Observable(None)              # 결과 이미지 (BGR, 원본 크기)
