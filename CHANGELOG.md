@@ -5,6 +5,8 @@
 ## [Unreleased]
 
 ### Added
+- `LICENSE` (AGPL-3.0, Ultralytics·YOLO 번호판 가중치와 같은 라이선스)와 `THIRD_PARTY_NOTICES.md` (패키지·가중치·글꼴·데이터 라이선스와 출처).
+- 번호판 감지기 **TensorRT FP16**: `export_trt.py` 로 `models\plate_yolo\<이름>_1280.engine` 을 만들면 GPU 에서 자동으로 씀 (1080p 감지 v1s 8.7 → 5.8 ms, v1l 18.9 → 8.1 ms). 인식 준비 로그에 감지 방식(TensorRT / PyTorch) 표시.
 - 번호판 감지기 `YOLO-v1s`: YOLO11s 번호판 감지 (Hugging Face morsetechlab/yolov11-license-plate-detection, AGPL-3.0). `models\plate_yolo\*.pt` 를 넣으면 크기별로 자동 등록.
 - 글자 인식 `EOCR_KR`: EasyOCR 한글+영어, 번호판 글자만 허용하고 한국 번호판 형식(`12가3456`, `123가4567`, `서울12가3456`)에 맞을 때만 읽은 것으로 침. 두 줄 번호판 지원.
 - 글자 인식 `EOCR_RAW`: EasyOCR 결과 그대로 (형식 검사 없음).
@@ -24,6 +26,8 @@
 - 종합 시험 도구 `plate_stress_test.py`: 번호판 12종 x 움직임 8가지 x 조명·모션블러·초점 흐림·잡음·JPEG, 설정별 비교.
 
 ### Changed
+- ultralytics 자동 패키지 설치 끔 (`YOLO_AUTOINSTALL=False`): 엔진을 만들 때 onnxruntime-gpu 를 스스로 설치하려 해서 막음.
+- 글자 인식 전 대비 보정(CLAHE)·선명화 기본값을 켬으로 바꿈: 종합 시험(`plate_stress_test.py`)에서 맞게 고정 33 → 40/108, 틀린 고정 5 → 3, 처리 시간 차이는 거의 없음.
 - 번호 고정을 **글자 자리별 다수결**로 바꿈: 같은 모양(길이·한글 위치)의 읽기끼리 묶고 자리마다 가장 많은 글자 → 매번 다른 자리 한 글자씩 틀려도 맞는 번호로 고정 (`tracker.vote_text`).
 - `EOCR_KR` 형식 검사 확장: 외교(`외교001001` 등 7종), 구형 이륜차(`서울강남가1234`, 시·군·구 이름), 지역명 한 글자 오류 고침(`서문` → `서울`). 지역명 뒤에는 숫자 2자리만 허용.
 - **번호판 감지 입력 크기 640 → 1280**: 640 에서는 한국 번호판을 거의 못 찾음 (합성 시험 12종 x 4조건 감지 8/48 → 34/48, 정면 3 m → 6 m, 감지 시간 +2.5 ms).

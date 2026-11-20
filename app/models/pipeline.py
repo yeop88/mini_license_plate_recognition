@@ -72,8 +72,8 @@ class RecognitionPipeline(threading.Thread):
         self.playing, self.realtime, self.show_entering = False, True, False
         self.entry_margin, self.lock_frames = TR.ENTRY_MARGIN, TR.LOCK_FRAMES
         self.sharp_select = True           # 흐린 프레임 건너뛰기 + 선명도 가중 다수결
-        self.enhance_contrast = False      # 글자 인식 전 대비 보정 (CLAHE)
-        self.enhance_sharpen = False       # 글자 인식 전 선명화 (언샤프 마스크)
+        self.enhance_contrast = True       # 글자 인식 전 대비 보정 (CLAHE) — 종합 시험에서 저대비·초점 흐림에 효과
+        self.enhance_sharpen = True        # 글자 인식 전 선명화 (언샤프 마스크)
         self.hold_track = True             # 고정 후 오래 기다림 + 감지가 끊기면 영상으로 따라가기
         self.low_conf = True               # 추적 중인 번호판은 낮은 신뢰도 감지로도 이어 감
         self.reid = True                   # 끊긴 뒤 같은 번호가 읽히면 이전 화면 ID·고정값 되살림
@@ -138,7 +138,9 @@ class RecognitionPipeline(threading.Thread):
             self.log("번호판 감지기가 없습니다. app\\models\\plate_models.py 에 감지기를 등록하세요.")
         else:
             reader = PM.describe(PM.READERS, rk) if self.read else "없음 (감지·추적만)"
-            self.log(f"인식 준비됨: 감지 {PM.describe(PM.DETECTORS, dk)} / 글자 인식 {reader} ({self.device})")
+            backend = getattr(self.detect, "backend", "")
+            backend = f", {backend}" if backend else ""
+            self.log(f"인식 준비됨: 감지 {PM.describe(PM.DETECTORS, dk)}{backend} / 글자 인식 {reader} ({self.device})")
         self.q.put(("ready", (dk, rk)))
 
     def set_size(self, w, h):

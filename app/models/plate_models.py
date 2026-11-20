@@ -15,6 +15,9 @@ plate_models (Model) — 번호판 감지기·글자 인식기를 등록하는 �
 
 등록된 모델 (2026-11-20)
     감지: models\\plate_yolo\\*.pt 마다 하나씩 (YOLO, ultralytics, 입력 1280)
+          같은 폴더에 <이름>_1280.engine (TensorRT FP16, export_trt.py 로 만듦) 이 있으면 GPU 에서 그것을 씀
+          (1080p: v1s 8.7 → 5.8 ms, v1l 18.9 → 8.1 ms. 엔진은 1280x1280 정사각 입력이라 PyTorch(1280x736)와
+           박스가 조금 다름, 감지 수는 비슷 — 2026-11-20 합성 240장 v1s 144 → 155/251, v1l 148 → 144/251, conf 0.1)
           지금 있는 것: license-plate-finetune-v1s.pt = YOLO-v1s (기본), license-plate-finetune-v1l.pt = YOLO-v1l
           (Hugging Face morsetechlab/yolov11-license-plate-detection, AGPL-3.0, 여러 나라 번호판으로 학습)
     글자: EasyOCR 한글+영어 (가중치 %USERPROFILE%\\.EasyOCR\\model 의 korean_g2.pth, craft_mlt_25k.pth)
@@ -32,6 +35,9 @@ import cv2
 import numpy as np
 
 from app.paths import MODELS_DIR
+
+# ultralytics 가 없는 패키지(onnxruntime-gpu 등)를 스스로 pip 설치하지 않게 함 (기존 환경 보호)
+os.environ.setdefault("YOLO_AUTOINSTALL", "False")
 
 DETECTORS = {}
 READERS = {}
@@ -65,17 +71,41 @@ YOLO_IMGSZ = 1280
 DEFAULT_DETECTOR = "YOLO-v1s"   # 기본 감지기 (v1l 등 다른 크기는 인식 설정 창에서 고름)
 
 
+def engine_path(path, imgsz=YOLO_IMGSZ):
+    """TensorRT 엔진 경로: license-plate-finetune-v1s.pt → license-plate-finetune-v1s_1280.engine (입력 크기별로 따로)"""
+    return f"{os.path.splitext(path)[0]}_{imgsz}.engine"
+
+
+def export_engine(path, imgsz=YOLO_IMGSZ, device=0):
+    """YOLO .pt → TensorRT FP16 엔진 (모델·입력 크기마다 한 번, 몇 분 걸림). export_trt.py 가 부름.
+    엔진은 만든 GPU·TensorRT 버전에서만 쓸 수 있음 (다른 PC 면 다시 만듦)"""
+    from ultralytics import YOLO
+    out = engine_path(path, imgsz)
+    made = YOLO(path, task="detect").export(format="engine", imgsz=imgsz, quantize=16, device=device, verbose=False)
+    os.replace(made, out)
+    onnx = os.path.splitext(path)[0] + ".onnx"      # 중간 파일
+    if os.path.isfile(onnx):
+        os.remove(onnx)
+    return out
+
+
 def _yolo_builder(path):
     def build(device):
         from ultralytics import YOLO
-        model = YOLO(path, task="detect")
         dev = 0 if str(device).startswith("cuda") else "cpu"
-        precision = "fp16" if dev == 0 else "fp32"     # ultralytics 8.4: half 대신 quantize
+        eng = engine_path(path)
+        if dev == 0 and os.path.isfile(eng):
+            # TensorRT FP16 엔진이 있으면 그것을 씀 (export_trt.py 로 만듦). 정밀도는 엔진에 들어 있음
+            model, kw, backend = YOLO(eng, task="detect"), {}, "TensorRT FP16"
+        else:
+            precision = "fp16" if dev == 0 else "fp32"     # ultralytics 8.4: half 대신 quantize
+            model, kw, backend = YOLO(path, task="detect"), {"quantize": precision}, f"PyTorch {precision.upper()}"
 
         def detect(frame, conf=None):
-            r = model.predict(frame, conf=YOLO_CONF if conf is None else conf, imgsz=YOLO_IMGSZ, device=dev, quantize=precision, verbose=False)[0]
+            r = model.predict(frame, conf=YOLO_CONF if conf is None else conf, imgsz=YOLO_IMGSZ, device=dev, verbose=False, **kw)[0]
             b = r.boxes
             return b.xyxy.cpu().numpy().astype(float), b.conf.cpu().numpy().astype(float)
+        detect.backend = backend
         return detect
     return build
 
