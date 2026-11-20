@@ -3,8 +3,8 @@
 USB 카메라 영상에서 **자동차 번호판을 찾고(감지) → 따라가고(추적) → 글자를 읽는(인식)** GUI 프로그램입니다.
 
 - 카메라 쪽은 완성되어 있습니다: 카메라 검색·해상도 선택·스펙 저장, 렌즈 왜곡 분석·보정, 가이드선, 초점 도우미, 캡처
-- 인식 쪽은 틀이 완성되어 있습니다: 카메라/영상 입력 → 번호판 감지 → 추적(화면 ID) → 글자 인식 → 여러 번 읽어 다수결로 번호 고정 → 결과 화면·캡처
-- **번호판 감지 모델과 글자 인식 모델은 아직 없습니다.** 모델이 생기면 `app\models\plate_models.py` 에 등록하면 인식 설정 창에 나타납니다 (아래 "모델 등록").
+- 인식: 카메라/영상 입력 → 번호판 감지(**YOLO11s**) → 추적(화면 ID) → 글자 인식(**EasyOCR 한글**) → 여러 번 읽어 다수결로 번호 고정 → 결과 화면·캡처
+- 모델은 `app\models\plate_models.py` 에 등록되어 있고, 인식 설정 창에서 고릅니다 (아래 "모델").
 
 ## 실행
 
@@ -15,7 +15,7 @@ run.bat                                    :: 콘솔 창 없이 실행 (지난�
 pythonw main.py --camera 1 --size 640x480  :: 카메라 번호·해상도 지정
 pythonw main.py --mode max_fps             :: 최고 프레임 (max_quality = 최고 화질, request = 기본 1920x1080)
 pythonw main.py --video D:\영상\road.mp4    :: 영상 파일로 시작 (감지기가 있으면 바로 재생)
-pythonw main.py --detector P1 --reader R1  :: 등록한 모델 키 (생략하면 첫 번째 등록 모델)
+pythonw main.py --detector YOLO-v1s --reader EOCR_RAW   :: 모델 키 (기본: YOLO-v1s + EOCR_KR)
 ```
 
 ## 화면
@@ -93,26 +93,31 @@ pythonw main.py --detector P1 --reader R1  :: 등록한 모델 키 (생략하면
 - 글자 고정: 못 읽은 프레임(빈 글자)은 세지 않고, 읽은 글자가 N개(기본 5) 모이면 가장 많이 나온 글자로 고정합니다(같으면 신뢰도 합이 큰 쪽). 다 읽기 전에 화면 밖으로 나가면 모은 만큼으로 고정합니다.
 - 번호판 글자(한글)는 맑은 고딕으로 그립니다.
 
-## 모델 등록
+## 모델
 
-`app\models\plate_models.py` 의 `DETECTORS`, `READERS` 에 추가합니다. 가중치는 `models\<이름>\` 에 둡니다(저장소에는 올리지 않음).
+`app\models\plate_models.py` 에 등록되어 있습니다.
+
+| 키 | 종류 | 내용 |
+| --- | --- | --- |
+| `YOLO-v1s` (기본) | 번호판 감지 | YOLO11s 번호판 감지 `models\plate_yolo\license-plate-finetune-v1s.pt` (19 MB). conf 0.25, 640, GPU fp16 |
+| `EOCR_KR` (기본) | 글자 인식 | EasyOCR 한글+영어. 번호판 글자만 허용, **한국 번호판 형식**(`12가3456`, `123가4567`, `서울12가3456`)에 맞을 때만 읽은 것으로 침 → 틀린 읽기가 다수결에 덜 섞임. 두 줄 번호판은 위 줄부터 이어 붙임 |
+| `EOCR_RAW` | 글자 인식 | EasyOCR 결과 그대로 (형식 검사 없음, 다른 나라 번호판·시험용) |
+
+- **YOLO 가중치 출처**: Hugging Face [morsetechlab/yolov11-license-plate-detection](https://huggingface.co/morsetechlab/yolov11-license-plate-detection) (다운로드 약 8만 회, **AGPL-3.0**). 여러 나라 번호판(Roboflow 데이터셋)으로 학습된 모델이라 한국 번호판 전용은 아닙니다. 크기 n/s/m/l/x 가 있고, 받은 것은 s.
+  - 받을 때 확인한 것 (2026-11-20): SHA256 이 Hugging Face 값과 같음 (`95e50c25…2381`). `.pt` 는 불러올 때 코드가 실행될 수 있는 형식이라 불러오기 전에 안을 검사함 → `ultralytics`·`torch` 모델 클래스와 `collections`, `set` 만 있고 위험한 호출 없음. (Hugging Face 는 ultralytics `.pt` 전부에 '주의' 표시를 붙임)
+  - 다른 크기를 쓰려면 같은 저장소의 `license-plate-finetune-v1?.pt` 를 `models\plate_yolo\` 에 넣으면 목록에 `YOLO-v1n`, `YOLO-v1m` … 으로 자동 추가됩니다.
+  - 다시 받기: `python -c "from huggingface_hub import hf_hub_download as d; d('morsetechlab/yolov11-license-plate-detection','license-plate-finetune-v1s.pt',local_dir='models/plate_yolo')"`
+- **EasyOCR 가중치**: 처음 쓸 때 `%USERPROFILE%\.EasyOCR\model\` 에 자동으로 받습니다 (`korean_g2.pth`, `craft_mlt_25k.pth`, 이 PC 에는 이미 있음).
+- 한국 번호판 인식률을 더 올리려면 한국 번호판 데이터(Roboflow 등)로 YOLO 를 미세 조정한 가중치를 `models\plate_yolo\` 에 넣으면 됩니다.
+
+### 새 모델 추가
+
+`DETECTORS`, `READERS` 에 추가합니다. 가중치는 `models\<이름>\` 에 둡니다(저장소에는 올리지 않음).
 
 | 종류 | 만드는 함수 | 돌려주는 함수 |
 | --- | --- | --- |
 | 감지기 | `build(device)` | `detect(frame_bgr) → (xyxy (N,4), conf (N,))` |
 | 글자 인식 | `build(device)` | `read([번호판 이미지, ...]) → [("12가3456", 0.93), ...]` (못 읽으면 `("", 0.0)`) |
-
-```python
-def _build_yolo_plate(device):
-    from ultralytics import YOLO
-    model = YOLO(os.path.join(MODELS_DIR, "plate_det", "best.pt"))
-    def detect(frame):
-        r = model.predict(frame, conf=0.25, device=device, verbose=False)[0]
-        return r.boxes.xyxy.cpu().numpy(), r.boxes.conf.cpu().numpy()
-    return detect
-
-DETECTORS["P1"] = {"name": "YOLO 번호판", "build": _build_yolo_plate}
-```
 
 ## 구조 (MVVM)
 
@@ -120,6 +125,10 @@ DETECTORS["P1"] = {"name": "YOLO 번호판", "build": _build_yolo_plate}
 mini_license_plate_recognition\
 ├─ main.py                      실행 진입점 (Model·ViewModel·View 조립, 실행 옵션)
 ├─ run.bat                      콘솔 창 없이 실행
+├─ camera_compat_test.py        카메라 호환성 시험 (창 없이)
+├─ plate_robustness_test.py     번호판 거리·각도·흐림 한계 시험 (합성)
+├─ plate_types_test.py          한국 번호판 종류별 시험 (합성)
+├─ docs\한국_번호판_데이터셋.md   무료 한국 번호판 학습 데이터 구하는 법
 ├─ app\
 │  ├─ mvvm.py                   Observable / Event
 │  ├─ paths.py                  저장 위치 (모두 이 폴더 기준)
@@ -161,8 +170,51 @@ mini_license_plate_recognition\
 ## 이 PC 의 카메라
 
 - 0번 "EShare Virtual Camera"(가상), **1번 "Global Shutter Camera"** = ELP-U3GS05B10C-IB8 5MP USB 글로벌 셔터, 수동 초점 렌즈(오토포커스 불가).
-- 2026-11-13 측정: 2592x1944 MJPG 38~40 fps, 2048x1536 60 fps, 1920x1080 60 fps, 1280x720 60 fps.
-- **2026-11-20 확인**: 1920x1080 MJPG 가 약 1 fps·검은 화면 (프로그램 없이 OpenCV 만으로도 같음), **640x480 은 60 fps 정상** → USB 연결 문제로 보임. 케이블을 본체 뒷면 USB 3 포트에 다시 꽂아 보세요. 그동안은 해상도 목록에서 640x480 을 고르면 됩니다.
+- **호환성 시험 (2026-11-20, `python camera_compat_test.py`, USB 3.0 연결)**: 지원 모드 18개 모두 정상
+  - **최고 화질 MJPG 2592x1944 38.4 fps / 최고 프레임 MJPG 2048x1536 59.7 fps** / 1920x1080 MJPG 60.0 fps (11-13 측정과 같음)
+  - YUY2: 2592x1944·2560x1440 35 fps, 2048x1536 50 fps, 1920x1080 이하 60 fps
+- **USB 2.0 로 잡히면 큰 모드가 안 됨**: 같은 날 앞서 USB 3.0 포트에 꽂았는데도 윈도우 장치 위치가 `ACPI(HS08)`(USB 2.0 선)로 잡혀 있었고, 1920x1080 이상이 1 fps·검은 화면, YUY2 큰 모드는 카메라가 최대 1 fps 로 알려 옴. 다시 꽂아 `ACPI(SS05)`(SuperSpeed)로 잡힌 뒤 정상. 화면이 검거나 느리면 케이블을 끝까지 다시 꽂고 확인:
+  `Get-PnpDeviceProperty -InstanceId <카메라 InstanceId> -KeyName DEVPKEY_Device_LocationPaths` → `SSxx` 면 USB 3, `HSxx` 면 USB 2
+- **40 fps 로 묶이는 문제 해결**: DSHOW 로 연 뒤 게인 값을 한 번 '읽기만' 하면 60 fps, 읽지 않으면 약 40 fps (1920x1080: 39.5 → 60.0). `app\models\camera.py` 의 `wake_frame_rate()` 가 열 때마다 읽음 (값은 바꾸지 않음).
+- 호환성 시험은 [카메라 설정] → **[호환성 시험 (스펙 다시 측정)]** 버튼으로도 할 수 있습니다 (모드마다 약 3초, 끝나면 사용 불가 모드를 메시지로 알림).
+
+## 시험 도구
+
+| 파일 | 하는 일 | 결과 |
+| --- | --- | --- |
+| `camera_compat_test.py` | 카메라 지원 모드를 전부 재서 최고 화질·최고 프레임 결정 (검은 화면·느린 모드 제외), `camera_profiles.json` 에 저장 | 화면 표 |
+| `plate_robustness_test.py [--imgsz 1280]` | 번호판 거리 x 좌우 각도, 위아래 각도, 기울기, 움직임 흐림 한계 (합성, 이 카메라 렌즈 값으로 투영) | `results\plate_robustness_<시각>_imgsz<N>\` |
+| `plate_types_test.py [--extra-yolo ...]` | 한국 번호판 12종(일반 7·8자리, 구형 녹색, 영업용 택시·버스·택배, 렌터카, 전기차, 법인 연두색, 외교, 건설기계, 이륜차) x 감지기 설정 | `results\plate_types_<시각>\` (plates.jpg = 그린 번호판) |
+
+- 한국 번호판 학습 데이터를 무료로 구하는 방법: [docs/한국_번호판_데이터셋.md](docs/한국_번호판_데이터셋.md)
+- `results\` 는 저장소에 올리지 않습니다.
+
+### 번호판 인식 시험 결과 (2026-11-20, 합성)
+
+**지금 앱(YOLO 입력 640)에서 한국 번호판을 거의 못 찾는 원인 = 감지기 입력 크기.** 1920x1080 영상을 640 으로 줄이면 번호판이 너무 작아짐. 글자 인식(EasyOCR)은 정답 위치만 주면 대부분 읽음.
+
+| 감지 설정 | 한국 번호판 12종 x 4조건 감지 | 인식(형식 검사) | 감지 시간 |
+| --- | --- | --- | --- |
+| v1s 입력 640 (지금 앱) | 8/48 | 5/48 | 8.4 ms |
+| **v1s 입력 1280** | 34/48 | 22/48 | 10.9 ms |
+| v1n 입력 1280 | 38/48 | 28/48 | 9.7 ms |
+| v1m 입력 1280 | 29/48 | 20/48 | — |
+| v1l 입력 1280 | 40/48 | 27/48 | 15.7 ms |
+
+거리·각도 한계 (fx 1536 기준, 4개 번호판 중 감지+정확히 읽은 비율이 75% 이상인 범위)
+
+| 조건 | 입력 640 (지금) | 입력 1280 |
+| --- | --- | --- |
+| 정면 거리 | 약 3 m (번호판 폭 267 px) | **약 6 m (133 px)** |
+| 좌우 각도 (5 m) | 못 찾음 | 45° 까지 |
+| 위아래 각도 (5 m) | 못 찾음 | 30° 까지 |
+| 기울기 (5 m) | 못 찾음 | 30° 까지 |
+| 가로 흐림 (5 m) | 못 찾음 | 5 px 까지 |
+| OCR 만 (정답 위치) | 정면 12 m (67 px), 좌우 45° 까지 | 같음 |
+
+- 종류별 (v1s 입력 1280): 일반·영업용(택시·택배)·렌터카·전기차·건설기계는 잘 찾음, 구형 녹색·외교·법인 연두색이 약함
+- 글자 형식 검사(EOCR_KR)는 **외교(`외교 001-001`)·이륜차 구형(`서울강남 가1234`) 형식을 못 받아들임** (OCR 은 RAW 로 정확히 읽음). 렌터카 `허` 는 형식 검사판이 맞게 읽고 RAW 는 `히` 로 틀림
+- 합성 장면(맑은 고딕, 단순한 차체, 렌즈 휨 없음) 기준이라 실제 성능은 실제 사진·카메라로 확인 필요. 거리는 fx 1536 (보정 파일 값, 영상 너비 x 0.8 로 둔 값) 이 맞을 때만 맞음 — 번호판 폭 px 로 보면 됨 (거리 m ≈ fx x 0.52 / 번호판 폭 px)
 
 ## 시험 기록
 
@@ -170,3 +222,8 @@ mini_license_plate_recognition\
 | --- | --- | --- |
 | 2026-11-20 | 시험용 감지기·글자 인식기(흰 사각형 감지, 가끔 틀리게 읽음)를 임시 등록, 움직이는 번호판 2개 합성 영상 (1280x720) | 카메라 입력: 6초 176 프레임, 약 29 fps, 번호판 2개 모두 바른 번호로 고정(다수결). 결과 캡처 177장 + csv. 영상 입력: 300 프레임 끝까지 재생, 번호판 3개 고정 |
 | 2026-11-20 | 실제 창 + 실제 카메라 640x480, 모델 없음 | 카메라 61 fps, 설정 창 2개 별도 창으로 열고 닫기, 인식 시작 시 "감지기 없음" 안내, 오류 없음 |
+| 2026-11-20 | YOLO-v1s + EasyOCR, 맑은 고딕으로 그린 한국식 번호판 3개 (`12가 3456`, `123나 4567`, 두 줄 `서울12가/3456`) 를 단색 장면(1280x720)에 붙여 시험 | EasyOCR: 번호판 이미지 3개 모두 정확 (약 12~17 ms/장). YOLO: 6 ms, 3개 중 2개 감지 (`123나 4567` 놓침), 감지한 2개는 정확히 읽음 (신뢰도 0.94, 0.99). 실제 번호판 사진·카메라 시험은 아직 |
+| 2026-11-20 | 실제 카메라로 앱 실행 (640x480) | 사용자 확인: 한국 번호판을 전혀 인식 못함 → 아래 시험으로 원인(감지기 입력 640) 확인 |
+| 2026-11-20 | `camera_compat_test.py` (USB 3.0 다시 연결 후, 게인 읽기 적용) | 18개 모드 정상, 최고 화질 MJPG 2592x1944 38.4 fps, 최고 프레임 MJPG 2048x1536 59.7 fps |
+| 2026-11-20 | `plate_robustness_test.py` (입력 640 / 1280), `plate_types_test.py` (v1s 640·1280, v1n·m·l 1280) | 위 "번호판 인식 시험 결과" 표. `results\plate_robustness_20261120_113955`, `results\plate_types_20261120_114507` |
+| 2026-11-20 | 같은 번호판 2개가 움직이는 장면을 가짜 카메라로 넣어 기본 설정(YOLO-v1s + EOCR_KR)으로 10초 | 259 프레임, 화면 29 fps (카메라 속도), 감지 7 ms + 읽기 19 ms (읽는 중일 때만). 두 번호판 모두 바른 번호로 고정 (ID 1 `서울12가3456`, ID 2 `12가3456`), 화면 밖으로 나가며 잘려도 고정값 유지 |

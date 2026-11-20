@@ -2,7 +2,7 @@
   "last_camera": "Global Shutter Camera",
   "cameras": {
     "Global Shutter Camera": {
-      "measured_at": "2026-11-13T11:09:58",
+      "measured_at": "2026-11-20T11:38:08",
       "model": "ELP-U3GS05B10C-IB8 (5.0MP USB)",
       "color": true,
       "advertised": [
@@ -123,7 +123,12 @@
           "width": 2592,
           "height": 1944,
           "fourcc": "MJPG",
-          "fps": 39.3
+          "fps": 38.4,
+          "advertised_fps": 60.0,
+          "frames": 77,
+          "black_ratio": 0.0,
+          "brightness": 133.2,
+          "problem": ""
         },
         {
           "request": "YUY2 2592x1944",
@@ -132,7 +137,12 @@
           "width": 2592,
           "height": 1944,
           "fourcc": "YUY2",
-          "fps": 34.7
+          "fps": 35.2,
+          "advertised_fps": 35.0,
+          "frames": 71,
+          "black_ratio": 0.0,
+          "brightness": 135.6,
+          "problem": ""
         },
         {
           "request": "MJPG 2560x1440",
@@ -141,7 +151,12 @@
           "width": 2560,
           "height": 1440,
           "fourcc": "MJPG",
-          "fps": 54.4
+          "fps": 53.9,
+          "advertised_fps": 60.0,
+          "frames": 108,
+          "black_ratio": 0.0,
+          "brightness": 138.2,
+          "problem": ""
         },
         {
           "request": "YUY2 2560x1440",
@@ -150,7 +165,12 @@
           "width": 2560,
           "height": 1440,
           "fourcc": "YUY2",
-          "fps": 35.2
+          "fps": 35.2,
+          "advertised_fps": 35.0,
+          "frames": 71,
+          "black_ratio": 0.0,
+          "brightness": 140.5,
+          "problem": ""
         },
         {
           "request": "MJPG 2048x1536",
@@ -159,7 +179,12 @@
           "width": 2048,
           "height": 1536,
           "fourcc": "MJPG",
-          "fps": 60.7
+          "fps": 59.7,
+          "advertised_fps": 60.0,
+          "frames": 120,
+          "black_ratio": 0.0,
+          "brightness": 134.3,
+          "problem": ""
         },
         {
           "request": "YUY2 2048x1536",
@@ -168,25 +193,12 @@
           "width": 2048,
           "height": 1536,
           "fourcc": "YUY2",
-          "fps": 49.7
-        },
-        {
-          "request": "MJPG 1280x720",
-          "request_fourcc": "MJPG",
-          "ok": true,
-          "width": 1280,
-          "height": 720,
-          "fourcc": "MJPG",
-          "fps": 59.5
-        },
-        {
-          "request": "YUY2 1280x720",
-          "request_fourcc": "YUY2",
-          "ok": true,
-          "width": 1280,
-          "height": 720,
-          "fourcc": "YUY2",
-          "fps": 59.6
+          "fps": 50.0,
+          "advertised_fps": 50.0,
+          "frames": 100,
+          "black_ratio": 0.0,
+          "brightness": 136.3,
+          "problem": ""
         },
         {
           "request": "MJPG 1920x1080",
@@ -195,8 +207,166 @@
           "width": 1920,
           "height": 1080,
           "fourcc": "MJPG",
-          "fps": 60.6,
-          "source": "사용 중 측정"
+          "fps": 60.0,
+          "advertised_fps": 60.0,
+          "frames": 120,
+          "black_ratio": 0.0,
+          "brightness": 138.5,
+          "problem": ""
+        },
+        {
+          "request": "YUY2 1920x1080",
+          "request_fourcc": "YUY2",
+          "ok": true,
+          "width": 1920,
+          "height": 1080,
+          "fourcc": "YUY2",
+          "fps": 60.0,
+          "advertised_fps": 60.0,
+          "frames": 120,
+          "black_ratio": 0.0,
+          "brightness": 139.4,
+          "problem": ""
+        },
+        {
+          "request": "MJPG 1600x1200",
+          "request_fourcc": "MJPG",
+          "ok": true,
+          "width": 1600,
+          "height": 1200,
+          "fourcc": "MJPG",
+          "fps": 59.5,
+          "advertised_fps": 60.0,
+          "frames": 119,
+          "black_ratio": 0.0,
+          "brightness": 126.5,
+          "problem": ""
+        },
+        {
+          "request": "YUY2 1600x1200",
+          "request_fourcc": "YUY2",
+          "ok": true,
+          "width": 1600,
+          "height": 1200,
+          "fourcc": "YUY2",
+          "fps": 60.1,
+          "advertised_fps": 60.0,
+          "frames": 121,
+          "black_ratio": 0.0,
+          "brightness": 124.3,
+          "problem": ""
+        },
+        {
+          "request": "MJPG 1280x960",
+          "request_fourcc": "MJPG",
+          "ok": true,
+          "width": 1280,
+          "height": 960,
+          "fourcc": "MJPG",
+          "fps": 59.6,
+          "advertised_fps": 60.0,
+          "frames": 120,
+          "black_ratio": 0.0,
+          "brightness": 123.6,
+          "problem": ""
+        },
+        {
+          "request": "YUY2 1280x960",
+          "request_fourcc": "YUY2",
+          "ok": true,
+          "width": 1280,
+          "height": 960,
+          "fourcc": "YUY2",
+          "fps": 59.3,
+          "advertised_fps": 60.0,
+          "frames": 119,
+          "black_ratio": 0.0,
+          "brightness": 125.1,
+          "problem": ""
+        },
+        {
+          "request": "MJPG 1280x720",
+          "request_fourcc": "MJPG",
+          "ok": true,
+          "width": 1280,
+          "height": 720,
+          "fourcc": "MJPG",
+          "fps": 60.0,
+          "advertised_fps": 60.0,
+          "frames": 121,
+          "black_ratio": 0.0,
+          "brightness": 127.5,
+          "problem": ""
+        },
+        {
+          "request": "YUY2 1280x720",
+          "request_fourcc": "YUY2",
+          "ok": true,
+          "width": 1280,
+          "height": 720,
+          "fourcc": "YUY2",
+          "fps": 60.0,
+          "advertised_fps": 60.0,
+          "frames": 121,
+          "black_ratio": 0.0,
+          "brightness": 127.6,
+          "problem": ""
+        },
+        {
+          "request": "MJPG 640x480",
+          "request_fourcc": "MJPG",
+          "ok": true,
+          "width": 640,
+          "height": 480,
+          "fourcc": "MJPG",
+          "fps": 59.6,
+          "advertised_fps": 60.0,
+          "frames": 120,
+          "black_ratio": 0.0,
+          "brightness": 122.9,
+          "problem": ""
+        },
+        {
+          "request": "YUY2 640x480",
+          "request_fourcc": "YUY2",
+          "ok": true,
+          "width": 640,
+          "height": 480,
+          "fourcc": "YUY2",
+          "fps": 60.0,
+          "advertised_fps": 60.0,
+          "frames": 120,
+          "black_ratio": 0.0,
+          "brightness": 122.9,
+          "problem": ""
+        },
+        {
+          "request": "MJPG 512x512",
+          "request_fourcc": "MJPG",
+          "ok": true,
+          "width": 512,
+          "height": 512,
+          "fourcc": "MJPG",
+          "fps": 59.5,
+          "advertised_fps": 60.0,
+          "frames": 120,
+          "black_ratio": 0.0,
+          "brightness": 149.6,
+          "problem": ""
+        },
+        {
+          "request": "YUY2 512x512",
+          "request_fourcc": "YUY2",
+          "ok": true,
+          "width": 512,
+          "height": 512,
+          "fourcc": "YUY2",
+          "fps": 59.5,
+          "advertised_fps": 60.0,
+          "frames": 119,
+          "black_ratio": 0.0,
+          "brightness": 155.0,
+          "problem": ""
         }
       ],
       "best": {
@@ -207,7 +377,12 @@
           "width": 2592,
           "height": 1944,
           "fourcc": "MJPG",
-          "fps": 39.3
+          "fps": 38.4,
+          "advertised_fps": 60.0,
+          "frames": 77,
+          "black_ratio": 0.0,
+          "brightness": 133.2,
+          "problem": ""
         },
         "max_fps": {
           "request": "MJPG 2048x1536",
@@ -216,25 +391,35 @@
           "width": 2048,
           "height": 1536,
           "fourcc": "MJPG",
-          "fps": 60.7
+          "fps": 59.7,
+          "advertised_fps": 60.0,
+          "frames": 120,
+          "black_ratio": 0.0,
+          "brightness": 134.3,
+          "problem": ""
         },
         "request": {
-          "request": "YUY2 1280x720",
-          "request_fourcc": "YUY2",
+          "request": "MJPG 1920x1080",
+          "request_fourcc": "MJPG",
           "ok": true,
-          "width": 1280,
-          "height": 720,
-          "fourcc": "YUY2",
-          "fps": 59.6
+          "width": 1920,
+          "height": 1080,
+          "fourcc": "MJPG",
+          "fps": 60.0,
+          "advertised_fps": 60.0,
+          "frames": 120,
+          "black_ratio": 0.0,
+          "brightness": 138.5,
+          "problem": ""
         },
         "request_size": [
-          1280,
-          720
+          1920,
+          1080
         ]
       },
-      "last_used": "2026-11-20T10:44:16",
+      "calibration_file": "calibration_Global_Shutter_Camera.json",
       "last_resolution": "1920x1080",
-      "calibration_file": "calibration_Global_Shutter_Camera.json"
+      "last_used": "2026-11-20T11:38:47"
     }
   }
 }

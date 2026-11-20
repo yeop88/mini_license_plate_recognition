@@ -34,9 +34,9 @@ class CameraPanel(SidePanel):
         b = ttk.Frame(f)
         b.grid(row=2, column=0, columnspan=2, sticky="w", pady=(4, 0))
         ttk.Button(b, text="새로고침", command=vm.refresh).pack(side="left", padx=2)
-        ttk.Button(b, text="스펙 다시 측정", command=vm.reprobe).pack(side="left", padx=2)
+        ttk.Button(b, text="호환성 시험 (스펙 다시 측정)", command=vm.reprobe).pack(side="left", padx=2)
         ttk.Button(b, text="캡처 (Space)", command=vm.capture).pack(side="left", padx=2)
-        ttk.Label(f, text="숫자키 0~9 = 그 번호 카메라, Tab = 다음 카메라. 처음 보는 카메라는 스펙을 먼저 잼 (30초~1분)",
+        ttk.Label(f, text="숫자키 0~9 = 그 번호 카메라, Tab = 다음 카메라. 처음 보는 카메라는 호환성 시험으로 스펙을 먼저 잼 (모드마다 약 3초)",
                   foreground="gray", wraplength=WRAP).grid(row=3, column=0, columnspan=2, sticky="w", pady=(4, 0))
 
         # ---- 렌즈 왜곡 보정 ----

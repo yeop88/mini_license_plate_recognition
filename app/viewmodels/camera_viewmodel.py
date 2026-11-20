@@ -249,9 +249,14 @@ class CameraViewModel:
         b = prof.get("best") or {}
         fmt = lambda m: f"{m['fourcc']} {m['width']}x{m['height']} {m['fps']:.0f}fps" if m else "없음"
         color = {True: "컬러", False: "흑백"}.get(prof["color"], "색상 미확인")
-        self.log.emit(f"'{job['name']}' 스펙 저장 ({os.path.basename(self.profiles.path)}, {color}): "
+        modes = prof.get("modes", [])
+        bad = [m for m in modes if not m.get("ok")]
+        self.log.emit(f"'{job['name']}' 호환성 시험 끝 — 쓸 수 있는 모드 {len(modes) - len(bad)}/{len(modes)}개. "
+                      f"스펙 저장 ({os.path.basename(self.profiles.path)}, {color}): "
                       f"최고 화질 {fmt(b.get('max_quality'))} / 최고 프레임 {fmt(b.get('max_fps'))} / "
                       f"기본 해상도 {fmt(b.get('request'))}")
+        if bad:
+            self.log.emit("사용 불가 모드: " + "; ".join(f"{m['request']} ({m['problem']})" for m in bad))
         self._open_selected(job["index"], job["name"], False)
 
     def _open_selected(self, index, name, retry, profile_ok=True):

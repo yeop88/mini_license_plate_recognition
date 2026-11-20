@@ -33,7 +33,17 @@ def open_camera(index, width, height, backend=None, fourcc="MJPG"):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*fourcc))
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # 지원하면 버퍼를 줄여 지연 감소
+    wake_frame_rate(cap)
     return cap
+
+
+def wake_frame_rate(cap):
+    """
+    ELP 5MP(Global Shutter Camera) + DSHOW: 열거나 모드를 바꾼 뒤 게인 값을 한 번 '읽기만' 하면 60fps,
+    읽지 않으면 약 40fps 로 나온다 (2026-11-20 실측, 1920x1080 MJPG: 읽지 않음 39.5 / 읽음 60.0, 연결마다 다시 필요).
+    값은 바꾸지 않는다.
+    """
+    cap.get(cv2.CAP_PROP_GAIN)
 
 
 def fourcc_text(value):

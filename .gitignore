@@ -22,3 +22,6 @@ __pycache__/
 
 # 편집기
 .vscode/
+
+# 시험 결과 (이미지 많음)
+/results/

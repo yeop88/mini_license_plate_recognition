@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+### Added
+- 번호판 감지기 `YOLO-v1s`: YOLO11s 번호판 감지 (Hugging Face morsetechlab/yolov11-license-plate-detection, AGPL-3.0). `models\plate_yolo\*.pt` 를 넣으면 크기별로 자동 등록.
+- 글자 인식 `EOCR_KR`: EasyOCR 한글+영어, 번호판 글자만 허용하고 한국 번호판 형식(`12가3456`, `123가4567`, `서울12가3456`)에 맞을 때만 읽은 것으로 침. 두 줄 번호판 지원.
+- 글자 인식 `EOCR_RAW`: EasyOCR 결과 그대로 (형식 검사 없음).
+- 기본 모델: `YOLO-v1s` + `EOCR_KR`.
+
+- 카메라 호환성 시험: 지원 모드를 전부 재고 검은 화면·느린 모드는 빼서 최고 화질·최고 프레임 결정 (`camera_compat_test.py`, [카메라 설정] → [호환성 시험 (스펙 다시 측정)]).
+- 번호판 시험 도구: `plate_robustness_test.py` (거리·각도·흐림), `plate_types_test.py` (한국 번호판 12종).
+- 문서 `docs/한국_번호판_데이터셋.md`: 무료 한국 번호판 학습 데이터 (AI Hub, Roboflow, GitHub 합성 생성기, RLPR).
+
+### Changed
+- `requirements.txt` 에 torch, ultralytics, easyocr, huggingface_hub 추가.
+- 스펙 측정(`probe_camera`)이 일부 해상도만 재던 것을 모든 지원 모드 시험으로 바꿈. 처음 여는 모드는 기본 해상도.
+
+### Fixed
+- 카메라가 약 40 fps 로 묶이던 문제: 열 때·모드를 바꿀 때 게인 값을 한 번 읽음 (`wake_frame_rate`, 값은 바꾸지 않음) → 1920x1080 60 fps.
+
 ## [0.1.0] - 2026-11-20
 
 카메라 앱과 인식 파이프라인을 하나로 합쳐 번호판 인식 프로그램의 첫 판을 만들었습니다.
@@ -21,7 +38,7 @@
 - 영상 파일 입력의 재생바 (클릭 점프·드래그).
 
 ### Known issues
-- 번호판 감지·글자 인식 모델이 아직 없습니다 (인식 시작 시 안내 메시지).
+- 번호판 감지·글자 인식 모델이 아직 없습니다 (인식 시작 시 안내 메시지). → [Unreleased] 에서 추가.
 - 이 PC 의 카메라(ELP 5MP)가 1920x1080 에서 약 1 fps·검은 화면 (OpenCV 단독도 같음, USB 연결 문제로 보임). 640x480 은 60 fps 정상.
 
 [Unreleased]: https://github.com/yeop88/mini_license_plate_recognition/compare/v0.1.0...HEAD

@@ -2,4 +2,7 @@ opencv-python
 pillow
 numpy
 pygrabber    # 선택: Windows 카메라 이름 표시용 (없어도 동작)
-# 번호판 모델을 등록하면 그 모델에 필요한 패키지를 추가 (예: torch, ultralytics, OCR 라이브러리)
+torch        # GPU (CUDA) 판 권장
+ultralytics  # YOLO 번호판 감지
+easyocr      # 번호판 글자 인식 (한글)
+huggingface_hub   # 번호판 YOLO 가중치 받기

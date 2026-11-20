@@ -22,13 +22,18 @@ from datetime import datetime
 import cv2
 import numpy as np
 
-from app.models.camera import fourcc_text, open_camera
+from app.models.camera import fourcc_text, open_camera, wake_frame_rate
 from app.paths import PROFILE_PATH
 
 PROBE_FORMATS = ["MJPG", "YUY2"]          # OpenCV 로 지정할 수 있는 형식
 FALLBACK_SIZES = [(1920, 1080), (1280, 720), (640, 480)]   # 카메라가 지원 모드를 알려 주지 않을 때
-PROBE_SECONDS = 1.0                       # 모드마다 FPS 를 재는 시간
-MAX_FPS_RATIO = 0.97                      # 카메라가 알려 준 최대 FPS 의 97% 이상이면 '최고 프레임' 달성으로 봄
+PROBE_SECONDS = 2.0                       # 모드마다 FPS 를 재는 시간
+WARMUP_SECONDS = 0.7                      # 모드를 바꾼 직후 버리는 시간 (처음 몇 장은 느리거나 검음)
+MIN_FPS_RATIO = 0.25                      # 카메라가 알려 준 최대 FPS 의 25% 미만이면 '느림' → 쓰지 않음
+MIN_FPS = 5.0                             # 또는 이 FPS 미만이면 '느림' (USB 2.0 에서 큰 모드가 1~3 fps 로 나오는 경우)
+BLACK_LEVEL = 8                           # 프레임의 가장 밝은 값이 이보다 작으면 검은 프레임
+BLACK_RATIO = 0.5                         # 검은 프레임이 이 비율 이상이면 '검은 화면' → 쓰지 않음
+SAME_FPS = 1.0                            # 최고 프레임: FPS 차이가 이 이하면 해상도가 큰 쪽
 PRESETS = ("request", "max_fps", "max_quality")
 
 
@@ -98,85 +103,122 @@ def list_formats(index):
         return []
 
 
-def measure_mode(cap, width, height, fourcc, seconds=PROBE_SECONDS):
-    """이미 열린 카메라의 해상도·형식을 바꾸고 실측 FPS 를 잰다 (카메라를 다시 열면 5~10초 걸리는 카메라가 있어서)"""
+def measure_mode(cap, width, height, fourcc, seconds=PROBE_SECONDS, adv_fps=0.0):
+    """
+    이미 열린 카메라의 해상도·형식을 바꾸고 잰다 (카메라를 다시 열면 5~10초 걸리는 카메라가 있어서).
+    실측 FPS, 실제 해상도·형식, 검은 프레임 비율, 밝기 → 쓸 수 있는지(ok)와 문제(problem)
+    """
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*fourcc))
-    for _ in range(3):                      # 바꾼 직후 몇 장은 느리게 오므로 버린다
+    wake_frame_rate(cap)                    # 이 카메라는 모드를 바꾼 뒤 게인을 읽어야 60fps (camera.py)
+    t = time.time()
+    while time.time() - t < WARMUP_SECONDS:  # 바꾼 직후는 느리거나 검으므로 버린다
         cap.read()
-    n, frame, t0 = 0, None, time.time()
+    n, black, bright, frame, t0 = 0, 0, 0.0, None, time.time()
     while time.time() - t0 < seconds:
         ok, f = cap.read()
         if ok:
             n, frame = n + 1, f
-    return {"request": f"{fourcc} {width}x{height}", "request_fourcc": fourcc, "ok": n > 0,
-            "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-            "fourcc": fourcc_text(cap.get(cv2.CAP_PROP_FOURCC)),
-            "fps": round(n / (time.time() - t0), 1)}, frame
+            small = f[::8, ::8]
+            black += int(small.max() < BLACK_LEVEL)
+            bright += float(small.mean())
+    fps = n / (time.time() - t0)
+    w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    problems = []
+    if n == 0:
+        problems.append("프레임 없음")
+    else:
+        if (w, h) != (width, height):
+            problems.append(f"다른 해상도({w}x{h})로 열림")
+        if black / n >= BLACK_RATIO:
+            problems.append(f"검은 화면({black}/{n}장)")
+        if fps < MIN_FPS:
+            problems.append(f"느림({MIN_FPS:.0f}fps 미만)")
+        elif adv_fps and fps < adv_fps * MIN_FPS_RATIO:
+            problems.append(f"느림(알려 준 {adv_fps:.0f}fps 의 {MIN_FPS_RATIO * 100:.0f}% 미만)")
+    return {"request": f"{fourcc} {width}x{height}", "request_fourcc": fourcc, "ok": not problems,
+            "width": w, "height": h, "fourcc": fourcc_text(cap.get(cv2.CAP_PROP_FOURCC)),
+            "fps": round(fps, 1), "advertised_fps": adv_fps, "frames": n,
+            "black_ratio": round(black / n, 2) if n else None, "brightness": round(bright / n, 1) if n else None,
+            "problem": ", ".join(problems)}, frame
+
+
+def pick_best(modes, request_size=None):
+    """쓸 수 있는(ok) 모드 중 최고 화질 / 최고 프레임 / 요청 해상도에서 가장 빠른 것"""
+    ok = [m for m in modes if m.get("ok")]
+    area = lambda m: m["width"] * m["height"]
+    best_quality = max(ok, key=lambda m: (area(m), m["fps"]), default=None)
+    top = max((m["fps"] for m in ok), default=0)
+    best_fps = max((m for m in ok if m["fps"] >= top - SAME_FPS), key=lambda m: (area(m), m["fps"]), default=None)
+    request = None
+    if request_size:
+        req = [m for m in ok if (m["width"], m["height"]) == tuple(request_size)]
+        request = max(req, key=lambda m: m["fps"], default=None)
+    return best_quality, best_fps, request
 
 
 def probe_camera(index, width=1920, height=1080, stop=None, log=None):
     """
-    카메라 스펙 측정: 최고 화질 / 최고 프레임 / 요청 해상도(width x height)에서 가장 빠른 형식.
-      1. 카메라가 알려 주는 지원 모드 목록(해상도·형식·최대 FPS)을 받는다
-      2. 최고 화질 = 가장 큰 해상도를 형식별로 재서 FPS 가 높은 쪽
-      3. 최고 프레임 = 큰 해상도부터 재다가 '알려 준 최대 FPS 의 97%' 이상이 나온 첫 해상도
-         (같은 FPS 면 해상도가 큰 쪽이 낫기 때문)
-      4. 요청 해상도를 형식별로 재서 FPS 가 높은 쪽
+    카메라 호환성 시험 + 스펙 측정 (2026-11-20 바꿈: 지원 모드를 전부 재고, 검은 화면·느린 모드는 뺌).
+      1. 카메라가 알려 주는 지원 모드 목록(해상도·형식·최대 FPS)을 받는다 (없으면 FALLBACK_SIZES)
+      2. 모든 모드(해상도 x 형식)를 큰 해상도부터 하나씩 2초씩 잰다 (+ 요청 해상도 width x height)
+         쓸 수 없음: 프레임 없음 / 다른 해상도로 열림 / 검은 화면 / 5fps 미만 또는 알려 준 최대 FPS 의 25% 미만
+         쓸 수 없던 모드는 마지막에 한 번 더 잰다 (모드를 바꾼 직후 잠깐 멈추는 경우)
+      3. 쓸 수 있는 모드 중 최고 화질(가장 큰 해상도) / 최고 프레임(가장 높은 FPS, 비슷하면 큰 해상도) /
+         요청 해상도에서 가장 빠른 형식을 고른다
     카메라는 한 번만 열고 해상도·형식만 바꿔 가며 잰다. FPS 는 요청하지 않는다.
+    처음 열 때는 요청 해상도(width x height, 60fps 모드)로 연다: 이 카메라(ELP 5MP)는 처음 연 모드의 프레임 간격을
+    뒤 모드에도 쓰므로, 가장 큰 해상도(약 40fps)로 먼저 열면 모든 모드가 40fps 로 묶임 (2026-11-20 실측)
     stop: True 를 돌려주면 중간에 그만둠 (None 반환). log: 진행 메시지를 받을 함수
     """
     say = log or (lambda m: None)
     advertised = list_formats(index)
-    formats = [f for f in PROBE_FORMATS if not advertised or any(a["fourcc"] == f for a in advertised)] or PROBE_FORMATS
-    sizes = sorted({(a["width"], a["height"]) for a in advertised}, key=lambda s: -s[0] * s[1]) or FALLBACK_SIZES
-    adv_max = max((a["max_fps"] for a in advertised), default=0)
-    say(f"지원 모드 {len(advertised)}개 (최대 {sizes[0][0]}x{sizes[0][1]}"
-        + (f", 최대 {adv_max:.0f}fps" if adv_max else "") + ")")
+    adv = {}
+    for a in advertised:
+        if a["fourcc"] in PROBE_FORMATS:
+            k = (a["width"], a["height"], a["fourcc"])
+            adv[k] = max(adv.get(k, 0), a["max_fps"])
+    if not adv:
+        adv = {(w, h, f): 0.0 for w, h in FALLBACK_SIZES for f in PROBE_FORMATS}
+    if (width, height, "MJPG") not in adv:
+        adv[(width, height, "MJPG")] = 0.0
+    order = sorted(adv, key=lambda k: (-k[0] * k[1], PROBE_FORMATS.index(k[2])))
+    say(f"호환성 시험: 모드 {len(order)}개를 하나씩 {PROBE_SECONDS:.0f}초씩 잽니다 (약 {len(order) * 3 // 60 + 1}분)")
 
     cap = open_camera(index, width, height)
     if cap is None:
         return {"error": f"카메라 {index}번을 열 수 없습니다"}
-    measured, color = {}, None
+    modes, color = [], None
 
-    def meas(w, h, fmt):
+    def run(i, w, h, fmt, total, retry=False):
         nonlocal color
-        key = (w, h, fmt)
-        if key not in measured:
-            if stop is not None and stop():
-                raise InterruptedError
-            m, frame = measure_mode(cap, w, h, fmt)
-            measured[key] = m
-            say(f"  {fmt} {w}x{h} → {m['width']}x{m['height']} {m['fourcc']} {m['fps']:.1f}fps")
-            if frame is not None and color is None:
-                d = np.abs(frame[..., 0].astype(np.int16) - frame[..., 2].astype(np.int16)).mean()
-                color = bool(d >= 1.0)      # 채널이 모두 같으면 흑백 카메라
-        return measured[key]
-
-    def fastest(w, h):
-        ms = [meas(w, h, f) for f in formats]
-        ms = [m for m in ms if m["ok"] and (m["width"], m["height"]) == (w, h)]
-        return max(ms, key=lambda m: m["fps"]) if ms else None
+        if stop is not None and stop():
+            raise InterruptedError
+        m, frame = measure_mode(cap, w, h, fmt, adv_fps=adv[(w, h, fmt)])
+        say(f"  [{'재시험 ' if retry else ''}{i}/{total}] {fmt} {w}x{h} → {m['fps']:.1f}fps "
+            + ("OK" if m["ok"] else f"사용 불가: {m['problem']}"))
+        if frame is not None and color is None and m["ok"]:
+            d = np.abs(frame[..., 0].astype(np.int16) - frame[..., 2].astype(np.int16)).mean()
+            color = bool(d >= 1.0)          # 채널이 모두 같으면 흑백 카메라
+        return m
 
     try:
-        best_quality = fastest(*sizes[0])
-        best_fps, target = None, adv_max * MAX_FPS_RATIO if adv_max else None
-        for s in sizes:
-            m = fastest(*s)
-            if m and (best_fps is None or m["fps"] > best_fps["fps"] + 0.5):
-                best_fps = m
-            if target and m and m["fps"] >= target:
-                break
-            if s[0] * s[1] <= 640 * 480:
-                break
-        request = fastest(width, height)
+        for i, (w, h, fmt) in enumerate(order, 1):
+            modes.append(run(i, w, h, fmt, len(order)))
+        bad = [k for k, m in enumerate(modes) if not m["ok"]]
+        for n, k in enumerate(bad, 1):                     # 쓸 수 없던 모드는 한 번 더
+            w, h, fmt = order[k]
+            m = run(n, w, h, fmt, len(bad), retry=True)
+            if m["ok"] or m["fps"] > modes[k]["fps"]:
+                modes[k] = m
     except InterruptedError:
         cap.release()
         return None
     cap.release()
+    best_quality, best_fps, request = pick_best(modes, (width, height))
     return {"measured_at": datetime.now().isoformat(timespec="seconds"), "model": "", "color": color,
-            "advertised": advertised, "modes": list(measured.values()),
+            "advertised": advertised, "modes": modes,
             "best": {"max_quality": best_quality, "max_fps": best_fps, "request": request,
                      "request_size": [width, height]}}
 
